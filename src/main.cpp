@@ -1,58 +1,83 @@
 #include <matdash.hpp>
-
-// defines add_hook to use minhook
 #include <matdash/minhook.hpp>
-
-// lets you use mod_main
 #include <matdash/boilerplate.hpp>
-
-// matdash::create_console
 #include <matdash/console.hpp>
-
-// gd.h includes cocos2d.h
 #include <gd.h>
 
-void MenuLayer_onNewgrounds(gd::MenuLayer* self, cocos2d::CCObject* sender) {
-    std::cout << "cool!" << std::endl;
-    matdash::orig<&MenuLayer_onNewgrounds>(self, sender);
-}
+float new_speed = 0.0f;
+float new_position = 0.0f;
+float speed_modificator = 397.5f;
 
-bool GJDropDownLayer_init(gd::GJDropDownLayer* self, const char* title, float height) {
-    return matdash::orig<&GJDropDownLayer_init>(self, "my own title", height * 0.5f);
-}
+bool flipped = false;
+bool is_platformer_active;
 
-matdash::cc::thiscall<void> PlayLayer_update(gd::PlayLayer* self, float dt) {
-    matdash::orig<&PlayLayer_update>(self, dt * 0.5f);
-    // this is due to the calling convention wrapper
-    // because matdash::cc::thiscall<void> is not actually void
-    // see https://github.com/matcool/mat-dash#usage for more info
+matdash::cc::thiscall<void> PlayLayer_reset(gd::PlayLayer* self) {
+    matdash::orig<&PlayLayer_reset>(self);
+
+    new_position = 0.0f;
+
     return {};
 }
 
-bool MenuLayer_init(gd::MenuLayer* self) {
-    if (!matdash::orig<&MenuLayer_init>(self)) return false;
 
-    auto* sprite = cocos2d::CCSprite::create("dialogIcon_017.png");
-    sprite->setPosition(ccp(100, 100));
-    sprite->setScale(0.5f);
-    self->addChild(sprite);
+void executePlatformer(gd::PlayLayer* playLayer, float deltaTime) {
+    if (playLayer->m_isDead) return;
 
-    auto* label = cocos2d::CCLabelBMFont::create("Hello world!", "bigFont.fnt");
-    label->setPosition(ccp(100, 150));
-    label->setAnchorPoint(ccp(0, 0.5));
-    self->addChild(label);
+    if ((GetKeyState('A') & 0x8000) || (GetKeyState(VK_LEFT) & 0x8000))
+    {
+        flipped = true;
+        new_position -= playLayer->m_player1->m_playerSpeed * deltaTime * 0.9f * speed_modificator;
+    }
+
+    else if ((GetKeyState('D') & 0x8000) || (GetKeyState(VK_RIGHT) & 0x8000))
+    {
+        flipped = false;
+        new_position += playLayer->m_player1->m_playerSpeed * deltaTime * 0.9f * speed_modificator;
+    }
+
+    playLayer->m_player1->m_position.x = new_position;
+    playLayer->m_player1->setFlipX(flipped);
+
+}
+
+
+matdash::cc::thiscall<void> PlayLayer_update(gd::PlayLayer* self, float dt) {
+    matdash::orig<&PlayLayer_update>(self, dt);
+
+    if (is_platformer_active)
+        executePlatformer(self, dt);
+
+    return {};
+}
+
+
+bool PlayLayer_init(gd::PlayLayer* self, gd::GJGameLevel* level) {
+    auto result = matdash::orig<&PlayLayer_init>(self, level);
+    is_platformer_active = gd::GameManager::sharedState()->getGameVariable("platformerOn");
+
+    return result;
+}
+
+
+
+bool MoreOptionsLayer_init(gd::MoreOptionsLayer* self) {
+    if (!matdash::orig<&MoreOptionsLayer_init>(self)) return false;
+
+    self->addToggle(
+        "Platformer by RLT",
+        "platformerOn",
+        "Enables platformer mode while playing levels.");
 
     return true;
 }
 
+
 void mod_main(HMODULE) {
-    // this creates a console window whenever the mod is injected
-    // which is very useful for debugging, but make sure to remove
-    // on release builds! :D
     matdash::create_console();
 
-    matdash::add_hook<&MenuLayer_onNewgrounds>(gd::base + 0x191e90);
-    matdash::add_hook<&GJDropDownLayer_init>(gd::base + 0x113530);
     matdash::add_hook<&PlayLayer_update>(gd::base + 0x2029c0);
-    matdash::add_hook<&MenuLayer_init>(gd::base + 0x1907B0);
+    matdash::add_hook<&PlayLayer_init>(gd::base + 0x1FB780);
+
+    matdash::add_hook<&PlayLayer_reset>(gd::base + 0x20BF00);
+    matdash::add_hook<&MoreOptionsLayer_init>(gd::base + 0x1DE8F0);
 }
