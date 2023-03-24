@@ -1,4 +1,4 @@
-# gd-mod-cpm
+# platformer-mod
 
 geometry dash mod template using [CPM.cmake](https://github.com/cpm-cmake/CPM.cmake) as a package manager
 
