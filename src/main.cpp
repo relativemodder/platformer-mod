@@ -37,7 +37,8 @@ void executePlatformer(gd::PlayLayer* playLayer, float deltaTime) {
 
     playLayer->m_player1->m_position.x = new_position;
     playLayer->m_player1->setFlipX(flipped);
-
+    playLayer->m_player2->m_position.x = new_position;
+    playLayer->m_player2->setFlipX(flipped);
 }
 
 
